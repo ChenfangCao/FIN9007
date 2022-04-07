@@ -193,7 +193,7 @@ plott <- BSMCompare %>%
   filter(expiryDate==m) %>%
   ggplot(aes(x=strike,y=callD))+
   geom_line()+
-  ggtitle(paste('the plot of call price difference with expriy date',d))
+  ggtitle(paste('the plot of call price difference via BSM with expriy date',d))
 
 print(plott)
 
