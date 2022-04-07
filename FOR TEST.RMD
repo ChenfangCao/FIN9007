@@ -84,7 +84,7 @@ TESTcall <-
 TESTpaired <- 
   TESTcall %>% 
   left_join(TESTput[,c('Kttm','putPrice')],by='Kttm') %>% 
-  select(-c(c_p,X))
+  select(-c(c_p))
 
 #worning
 #underlying only has data till 2020-12-31
@@ -98,8 +98,8 @@ TESTpaired <-
 
 TESTsampleImpliedR <- 
   TESTpaired %>% 
-  mutate(x=putPrice-callPrice) %>% 
-  select(Kttm,expiryDate,ttm,strike,x) %>% 
+  mutate(putDcall=putPrice-callPrice) %>% 
+  select(Kttm,expiryDate,ttm,strike,putDcall,callPrice,putPrice,X) %>% 
   arrange(expiryDate) %>% 
   data.frame()
 
