@@ -160,8 +160,9 @@ BSMCompare %>%
 
 
 BSMCompare %>% 
-  ggplot(aes(x=X,y=putD))+
-  geom_line()
+  ggplot(aes(x=X,y=callD))+
+  geom_line()+
+  ggtitle("call price difference of SPX option of all expiryDate and strike")
 
 
 ```
