@@ -4,6 +4,7 @@ output: html_document
 date: '2022-04-06'
 ---
 
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -12,9 +13,9 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r 5.1 load para}
 
 volatility=0.2
-deltaT=1/252/1
+deltaT=ttm/nSteps
 spotUndelrying=810
-nSteps=1*252
+nSteps=252
 
 rnorm(1)*sqrt(deltaT)
 
@@ -28,6 +29,139 @@ nTimes=100000
 ```
 
 
+
+```{r SPX loop for RandD}
+################
+timestart<-Sys.time()
+
+
+
+#linear regression
+nSteps=1000
+call_put=-1#1 for call option, -1 for put option
+
+for (m in Dates){
+cnt <- 0
+  
+
+lmsample <- 
+  TESTsampleImpliedR %>% 
+  filter(expiryDate==m)
+
+ttm=TTM <- unique(lmsample$ttm)
+
+resIR <- lm(strike ~ x,data = lmsample)
+
+
+impliedSPXF <- resIR$coefficients[1]
+
+impliedR <- log(resIR$coefficients[2])/ttm
+
+impliedDividend <- impliedR-log(impliedSPXF/spotUnderlying)/ttm
+
+lmsample <- 
+  lmsample %>% 
+  mutate(impliedSPXF=resIR$coefficients[1],
+         impliedR=log(resIR$coefficients[2])/ttm) %>% 
+  mutate(impliedDividend=impliedR-log(impliedSPXF/spotUnderlying)/ttm) 
+
+
+d=as.Date.numeric(m)
+print(paste('for SPX expiry in',d,'we have R=',impliedR,'and Dividend=  ',impliedDividend))
+
+
+
+##########
+
+interestRate=as.numeric(impliedR <- log(resIR$coefficients[2])/ttm) 
+
+dividendYield=as.numeric(impliedR-log(impliedSPXF/spotUnderlying)/ttm)
+
+volatility=volatilitySPX 
+
+spotUnderlying=spotUnderlyingSPX
+
+strike=Strikes <- unique(lmsample$strike)
+
+americanOption=FALSE
+
+deltaT=ttm/nSteps
+
+uCRR=exp(volatility*sqrt(deltaT))
+
+dCRR=exp(-volatility*sqrt(deltaT))
+
+aCRR=exp((interestRate-dividendYield)*(deltaT))
+
+pCRR=(aCRR-dCRR)/(uCRR-dCRR)
+
+####
+optionTemp=rep(NA,nSteps+1)
+statesTemp=rep(NA,nSteps+1)
+TreePrice=rep(NA,length(strike))
+
+####
+  for (n in strike){
+    TESTstrike <- n
+
+    for (j in 1:(nSteps+1)){
+      statesTemp[j]=spotUnderlying*uCRR^(j-1)*dCRR^(nSteps-(j-1))
+                            }
+####
+    for (o in 1:(nSteps+1)){
+        optionTemp[o]=max((statesTemp[o]-TESTstrike)*call_put,0)
+                            }  
+  
+####    
+    for (i in nSteps:1){optionTemp_1=rep(NA,i)
+                        statesTemp=rep(NA,i)
+                        s=(nSteps+1)
+    
+      for (s in 1:i){
+        statesTemp[s]=spotUnderlying*uCRR^(s-1)*dCRR^(i-1-(s-1))
+                    }
+    
+    if (americanOption==TRUE){
+      for (j in 1:i){
+        optionTemp_1[j]=max(((1-pCRR)*optionTemp[j]+pCRR*optionTemp[j+1])*exp(-interestRate*deltaT),(statesTemp[j]-TESTstrike)*call_put)
+                    }        }  
+    else{
+      for (j in 1:i){
+        optionTemp_1[j]=((1-pCRR)*optionTemp[j]+pCRR*optionTemp[j+1])*exp(-interestRate*deltaT)
+                    }     
+        }
+                    
+  optionTemp=optionTemp_1}
+  
+  cnt <- cnt+1
+  
+  #cat('Loop',paste(cnt),'is for option expiry at',paste(d),'when strike is',n,"Option price is: ",optionTemp,'\n')
+  
+  
+  
+  TreePrice[cnt] <- optionTemp
+                    }
+lmsample <- 
+  lmsample %>% 
+  mutate(Tree=TreePrice)
+
+if (m==18278)
+  {TESTResult <- lmsample}
+  else
+    {TESTResult <- bind_rows(TESTResult,lmsample)}
+}
+
+
+#output time usage
+timeend<-Sys.time()
+
+runningtime<-timeend-timestart
+
+print(runningtime)
+
+```
+
+
 ### bsm model
 
 
@@ -35,8 +169,7 @@ nTimes=100000
 
 ttm=deltaT*nSteps
 
-d1=
-  (log(spotUndelrying/strike)+(interestRate-dividendYield+volatility^2/2))*ttm/(volatility*sqrt(ttm))
+d1=(log(spotUndelrying/strike)+(interestRate-dividendYield+volatility^2/2))*ttm/(volatility*sqrt(ttm))
 
 d2=d1-volatility*sqrt(ttm)
 
@@ -46,6 +179,8 @@ callPrice=
 
 putPrice=
   strike*exp(-interestRate*ttm)*pnorm(-d2)-spotUndelrying*exp(-dividendYield*ttm)*pnorm(-d1)
+
+
 
 
 ```
